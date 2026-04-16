@@ -541,6 +541,9 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
 
 
+
+/* Annotation */
+#annot-canvas { cursor: crosshair; max-width: 100%; display: block; }
 </style>
 
 <div id="report-screen" style="display:none;background:var(--bg);min-height:100vh;">
@@ -552,6 +555,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 </div>
 
 
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1d4ed8">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231d4ed8'/><text y='.9em' font-size='80' x='10'>🏗</text></svg>">
 </head>
 <body>
 
@@ -697,11 +704,51 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
     <div class="card-header">Non-conformités & alertes par catégorie</div>
     <div class="card-body pt0" id="d-barcats"></div>
   </div>
+
+  <!-- Rapport comparé -->
+  <div class="section-label">Rapport comparé — évolution d'un magasin</div>
+  <div class="card">
+    <div class="card-body">
+      <div class="grid2" style="margin-bottom:12px;">
+        <div class="field">
+          <label>Magasin</label>
+          <select id="comp-magasin" onchange="renderComparison()" style="font-size:15px;">
+            <option value="">Sélectionner...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Nombre de visites à comparer</label>
+          <select id="comp-count" onchange="renderComparison()">
+            <option value="2">2 dernières</option>
+            <option value="3">3 dernières</option>
+            <option value="5">5 dernières</option>
+          </select>
+        </div>
+      </div>
+      <div id="comp-result"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════════════════ PAGE RAPPORTS ══════════════════════ -->
 <div class="page" id="page-rapports">
   <div class="page-header"><h1>Rapports</h1><p>Historique de toutes les visites</p></div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+    <input type="text" id="filter-search" placeholder="🔍 Magasin, agent..." oninput="renderReports()"
+      style="flex:1;min-width:140px;border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-family:var(--font);font-size:14px;outline:none;background:var(--white);">
+    <select id="filter-status" onchange="renderReports()"
+      style="border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-family:var(--font);font-size:14px;outline:none;background:var(--white);-webkit-appearance:none;padding-right:32px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;">
+      <option value="">Tous statuts</option>
+      <option value="ok">✓ Conformes</option>
+      <option value="warn">⚠ Alertes</option>
+      <option value="bad">✗ Non conformes</option>
+    </select>
+    <select id="filter-magasin" onchange="renderReports()"
+      style="border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-family:var(--font);font-size:14px;outline:none;background:var(--white);-webkit-appearance:none;padding-right:32px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;">
+      <option value="">Tous magasins</option>
+    </select>
+  </div>
+  <div id="filter-count" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
   <div id="reports-container"></div>
 </div>
 
@@ -836,6 +883,37 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
   </div>
 </div>
 
+
+<!-- ══ MODALE ANNOTATION PHOTO ══ -->
+<div class="overlay" id="annotOverlay">
+  <div class="sheet" style="padding-bottom:20px;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Annoter la photo</div>
+    <div class="sheet-body" style="padding-bottom:0;">
+      <div style="position:relative;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+        <canvas id="annot-canvas" style="display:block;width:100%;touch-action:none;cursor:crosshair;"></canvas>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--muted);font-weight:500;">Couleur :</label>
+        <button onclick="setAnnotColor('#ef4444')" id="ac-red" style="width:28px;height:28px;border-radius:50%;background:#ef4444;border:2px solid var(--text);cursor:pointer;"></button>
+        <button onclick="setAnnotColor('#f97316')" id="ac-orange" style="width:28px;height:28px;border-radius:50%;background:#f97316;border:2px solid transparent;cursor:pointer;"></button>
+        <button onclick="setAnnotColor('#22c55e')" id="ac-green" style="width:28px;height:28px;border-radius:50%;background:#22c55e;border:2px solid transparent;cursor:pointer;"></button>
+        <button onclick="setAnnotColor('#3b82f6')" id="ac-blue" style="width:28px;height:28px;border-radius:50%;background:#3b82f6;border:2px solid transparent;cursor:pointer;"></button>
+        <button onclick="setAnnotColor('#ffffff')" id="ac-white" style="width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid #e2e4e9;cursor:pointer;"></button>
+        <label style="font-size:12px;color:var(--muted);font-weight:500;margin-left:8px;">Épaisseur :</label>
+        <input type="range" min="2" max="20" value="4" id="annot-size" oninput="annotState.size=+this.value;if(annotState.ctx)annotState.ctx.lineWidth=annotState.size;" style="flex:1;min-width:80px;">
+        <button onclick="clearAnnot()" class="btn btn-danger" style="padding:6px 12px;font-size:12px;">Effacer</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="closeAnnot()">Annuler</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="saveAnnot()">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M13 5l-6 6-3-3"/></svg>
+          Enregistrer l'annotation
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="fs-overlay" id="fsOverlay" onclick="closeFs()">
   <button class="fs-close">✕</button>
@@ -1193,7 +1271,9 @@ function renderPhotos(key) {
   photos.forEach((src, i) => {
     const w = document.createElement('div');
     w.className = 'photo-thumb-wrap';
-    w.innerHTML = `<img src="${src}" onclick="openFs('${key}',${i})"><button class="photo-del-btn" onclick="delPhoto('${key}',${i})">✕</button>`;
+    w.innerHTML = `<img src="${src}" onclick="openFs('${key}',${i})">
+      <button class="photo-del-btn" onclick="delPhoto('${key}',${i})">✕</button>
+      <button onclick="openAnnot('${key}',${i})" style="position:absolute;bottom:-6px;right:-6px;width:20px;height:20px;background:var(--accent);border:2px solid white;border-radius:50%;color:white;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;">✏</button>`;
     grid.appendChild(w);
   });
   // Bouton Appareil photo
@@ -1311,6 +1391,7 @@ function newVisit() {
 // DASHBOARD
 // ════════════════════════════════════════════════════════
 function renderDash() {
+  populateCompMagasin();
   document.getElementById('d-total').textContent = S.reports.length;
   let ok=0,warn=0,bad=0;
   S.reports.forEach(r => Object.values(r.evals).forEach(e => {
@@ -1361,12 +1442,20 @@ function renderDash() {
 // REPORTS PAGE
 // ════════════════════════════════════════════════════════
 function renderReports() {
+  populateFilterMagasin();
   const c = document.getElementById('reports-container');
+  const filtered = getFilteredReports();
+  const countEl = document.getElementById('filter-count');
+  if (countEl) countEl.textContent = filtered.length + ' rapport(s) trouvé(s) sur ' + S.reports.length;
   if (!S.reports.length) {
     c.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><h3>Aucun rapport</h3><p>Les visites enregistrées apparaîtront ici</p></div>`;
     return;
   }
-  c.innerHTML = S.reports.map(r => {
+  if (!filtered.length) {
+    c.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><h3>Aucun résultat</h3><p>Modifiez les filtres</p></div>`;
+    return;
+  }
+  c.innerHTML = filtered.map(r => {
     const nc = Object.values(r.evals).filter(e=>e.status==='bad').length;
     const w = Object.values(r.evals).filter(e=>e.status==='warn').length;
     const total = Object.values(r.evals).filter(e=>e.status).length;
@@ -1961,7 +2050,7 @@ function goPage(id) {
 }
 
 // Close overlays on background click
-['mailOverlay','detailOverlay','newCatOverlay','newSubOverlay'].forEach(id => {
+['mailOverlay','detailOverlay','newCatOverlay','newSubOverlay','annotOverlay'].forEach(id => {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target===this) this.classList.remove('open');
   });
@@ -2224,6 +2313,230 @@ function quickSendCurrentVisit() {
       if (saved) quickSendReport(saved.id);
     }, 300);
   }
+}
+
+
+// ════════════════════════════════════════════════════════
+// FILTRES RAPPORTS
+// ════════════════════════════════════════════════════════
+function getFilteredReports() {
+  const search  = (document.getElementById('filter-search')  || {}).value || '';
+  const status  = (document.getElementById('filter-status')  || {}).value || '';
+  const magasin = (document.getElementById('filter-magasin') || {}).value || '';
+  return S.reports.filter(r => {
+    if (magasin && r.magasin !== magasin) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!r.magasin.toLowerCase().includes(q) && !r.agent.toLowerCase().includes(q)) return false;
+    }
+    if (status) {
+      const hasStatus = Object.values(r.evals).some(e => e.status === status);
+      if (!hasStatus) return false;
+    }
+    return true;
+  });
+}
+
+function populateFilterMagasin() {
+  const sel = document.getElementById('filter-magasin');
+  if (!sel) return;
+  const cur = sel.value;
+  const mags = [...new Set(S.reports.map(r => r.magasin))].sort();
+  sel.innerHTML = '<option value="">Tous magasins</option>' +
+    mags.map(m => `<option value="${m}"${m===cur?' selected':''}>${m}</option>`).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// RAPPORT COMPARÉ
+// ════════════════════════════════════════════════════════
+function populateCompMagasin() {
+  const sel = document.getElementById('comp-magasin');
+  if (!sel) return;
+  const mags = [...new Set(S.reports.map(r => r.magasin))].sort();
+  sel.innerHTML = '<option value="">Sélectionner...</option>' +
+    mags.map(m => `<option value="${m}">${m}</option>`).join('');
+}
+
+function renderComparison() {
+  const magasin = (document.getElementById('comp-magasin') || {}).value;
+  const count   = parseInt((document.getElementById('comp-count') || {}).value || '2');
+  const el      = document.getElementById('comp-result');
+  if (!el) return;
+  if (!magasin) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">Sélectionnez un magasin</div>'; return; }
+
+  const visits = S.reports.filter(r => r.magasin === magasin)
+    .sort((a,b) => new Date(b.date) - new Date(a.date))
+    .slice(0, count);
+
+  if (visits.length < 2) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">Moins de 2 visites pour ce magasin</div>';
+    return;
+  }
+
+  const stL = {ok:'Conforme', warn:'Attention', bad:'Non conforme', na:'N/A'};
+  const stC = {ok:'var(--ok)', warn:'var(--warn)', bad:'var(--bad)', na:'var(--muted)'};
+
+  // Tableau comparatif par sous-catégorie
+  let html = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html += '<thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);font-weight:600;">Point de contrôle</th>';
+  visits.forEach(v => {
+    html += `<th style="text-align:center;padding:6px 8px;border-bottom:2px solid var(--border);font-weight:600;white-space:nowrap;">${fmtDate(v.date)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  CATS.forEach(cat => {
+    let hasAny = false;
+    cat.subs.forEach((sub, i) => {
+      const k = cat.id + '__' + i;
+      const hasData = visits.some(v => v.evals[k] && v.evals[k].status);
+      if (!hasData) return;
+      hasAny = true;
+      html += `<tr><td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;">${sub}</td>`;
+      visits.forEach(v => {
+        const e = v.evals[k];
+        const st = e && e.status ? e.status : 'na';
+        const lbl = stL[st] || '—';
+        const col = stC[st] || 'var(--muted)';
+        // Flèche d'évolution si pas la première visite
+        html += `<td style="text-align:center;padding:5px 8px;border-bottom:1px solid var(--border);">
+          <span style="font-size:11px;font-weight:600;color:${col};">${lbl}</span>
+        </td>`;
+      });
+      html += '</tr>';
+    });
+    if (hasAny) {
+      html = html.replace(
+        `<tr><td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;">${cat.subs[0]}`,
+        `<tr><td colspan="${visits.length+1}" style="background:var(--accent-light);color:var(--accent);font-weight:700;font-size:11px;padding:5px 8px;text-transform:uppercase;letter-spacing:.4px;">${cat.emoji} ${cat.name}</td></tr>` +
+        `<tr><td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;">${cat.subs[0]}`
+      );
+    }
+  });
+
+  html += '</tbody></table></div>';
+
+  // Résumé évolution
+  const last  = visits[0];
+  const prev  = visits[1];
+  const lastBad  = Object.values(last.evals).filter(e=>e.status==='bad').length;
+  const prevBad  = Object.values(prev.evals).filter(e=>e.status==='bad').length;
+  const diff = lastBad - prevBad;
+  const trend = diff < 0
+    ? `<span style="color:var(--ok);font-weight:700;">↓ ${Math.abs(diff)} défaut(s) de moins</span>`
+    : diff > 0
+    ? `<span style="color:var(--bad);font-weight:700;">↑ ${diff} défaut(s) de plus</span>`
+    : `<span style="color:var(--muted);">= Stable</span>`;
+
+  el.innerHTML = `<div style="padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:12px;font-size:13px;">
+    Évolution entre la dernière et la précédente visite : ${trend}
+    (${lastBad} NC vs ${prevBad} NC)
+  </div>` + html;
+}
+
+// ════════════════════════════════════════════════════════
+// ANNOTATION PHOTO
+// ════════════════════════════════════════════════════════
+let annotState = {
+  canvas: null, ctx: null, drawing: false,
+  color: '#ef4444', size: 4,
+  key: null, idx: null, origSrc: null
+};
+
+function openAnnot(key, idx) {
+  const src = S.evals[key] && S.evals[key].photos[idx];
+  if (!src) return;
+  annotState.key = key; annotState.idx = idx; annotState.origSrc = src;
+
+  const canvas = document.getElementById('annot-canvas');
+  annotState.canvas = canvas;
+
+  const img = new Image();
+  img.onload = () => {
+    const maxW = Math.min(window.innerWidth - 32, 700);
+    const ratio = img.height / img.width;
+    canvas.width  = maxW;
+    canvas.height = maxW * ratio;
+    const ctx = canvas.getContext('2d');
+    annotState.ctx = ctx;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = annotState.color;
+    ctx.lineWidth   = annotState.size;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  };
+  img.src = src;
+
+  setAnnotColor('#ef4444');
+  document.getElementById('annotOverlay').classList.add('open');
+
+  // Touch/pointer events
+  canvas.addEventListener('pointerdown', annotStart);
+  canvas.addEventListener('pointermove', annotMove);
+  canvas.addEventListener('pointerup',   annotEnd);
+  canvas.addEventListener('pointerleave',annotEnd);
+}
+
+function annotStart(e) {
+  annotState.drawing = true;
+  const p = annotPos(e);
+  annotState.ctx.beginPath();
+  annotState.ctx.moveTo(p.x, p.y);
+  e.preventDefault();
+}
+function annotMove(e) {
+  if (!annotState.drawing) return;
+  const p = annotPos(e);
+  annotState.ctx.lineTo(p.x, p.y);
+  annotState.ctx.stroke();
+  e.preventDefault();
+}
+function annotEnd(e) { annotState.drawing = false; }
+
+function annotPos(e) {
+  const r = annotState.canvas.getBoundingClientRect();
+  const scaleX = annotState.canvas.width  / r.width;
+  const scaleY = annotState.canvas.height / r.height;
+  const src = e.touches ? e.touches[0] : e;
+  return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+}
+
+function setAnnotColor(color) {
+  annotState.color = color;
+  if (annotState.ctx) { annotState.ctx.strokeStyle = color; }
+  ['red','orange','green','blue','white'].forEach(c => {
+    const btn = document.getElementById('ac-' + c);
+    if (btn) btn.style.border = '2px solid transparent';
+  });
+  const map = {'#ef4444':'red','#f97316':'orange','#22c55e':'green','#3b82f6':'blue','#ffffff':'white'};
+  const btn = document.getElementById('ac-' + (map[color]||'red'));
+  if (btn) btn.style.border = '2px solid var(--text)';
+}
+
+function clearAnnot() {
+  const ctx = annotState.ctx;
+  const canvas = annotState.canvas;
+  if (!ctx || !canvas) return;
+  const img = new Image();
+  img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  img.src = annotState.origSrc;
+}
+
+function saveAnnot() {
+  const { canvas, key, idx } = annotState;
+  if (!canvas || key === null || idx === null) return;
+  S.evals[key].photos[idx] = canvas.toDataURL('image/jpeg', 0.85);
+  renderPhotos(key);
+  closeAnnot();
+  toast('✓ Annotation enregistrée');
+}
+
+function closeAnnot() {
+  document.getElementById('annotOverlay').classList.remove('open');
+  const canvas = document.getElementById('annot-canvas');
+  canvas.removeEventListener('pointerdown', annotStart);
+  canvas.removeEventListener('pointermove', annotMove);
+  canvas.removeEventListener('pointerup',   annotEnd);
+  canvas.removeEventListener('pointerleave',annotEnd);
 }
 
 
