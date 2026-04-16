@@ -663,7 +663,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 5l-6 6-3-3"/></svg>
       Enregistrer
     </button>
-    <button class="btn btn-success" onclick="openMail()">
+    <button class="btn btn-success" onclick="quickSendCurrentVisit()">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="12" height="9" rx="1.5"/><polyline points="2,4 8,9.5 14,4"/></svg>
       Envoyer PDF
     </button>
@@ -844,6 +844,27 @@ hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+
+
+<!-- ══ BARRE ENVOI PDF+MAIL ══ -->
+<div id="send-guidance-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:#fff;border-top:3px solid var(--accent);padding:14px 16px 28px;flex-direction:column;gap:10px;box-shadow:0 -4px 24px rgba(0,0,0,0.12);">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-size:14px;font-weight:700;color:var(--text);">📎 Envoyer le rapport par mail</div>
+    <button onclick="hideSendBar()" style="background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:0;line-height:1;">✕</button>
+  </div>
+  <div style="background:var(--accent-light);border:1px solid var(--accent-border);border-radius:8px;padding:10px 12px;">
+    <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;">Fichier téléchargé : <span id="send-filename" style="font-style:italic;"></span></div>
+    <div style="font-size:12px;color:var(--text);line-height:1.8;">
+      <span style="font-weight:600;">Étape 1 ✓</span> PDF téléchargé dans vos Fichiers<br>
+      <span style="font-weight:600;">Étape 2 →</span> Appuyez sur le bouton ci-dessous pour ouvrir Mail<br>
+      <span style="font-weight:600;">Étape 3 →</span> Dans Mail : appuyez sur 📎 → Fichiers → sélectionnez le PDF
+    </div>
+  </div>
+  <a id="send-mail-link" href="#" style="display:flex;align-items:center;justify-content:center;gap:10px;background:var(--accent);color:#fff;border-radius:10px;padding:14px;font-size:15px;font-weight:700;text-decoration:none;font-family:var(--font);">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0;"><rect x="2" y="4" width="12" height="9" rx="1.5"/><polyline points="2,4 8,9.5 14,4"/></svg>
+    Ouvrir Mail avec objet pré-rempli
+  </a>
+</div>
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1339,13 +1360,12 @@ function renderReports() {
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--muted2)" stroke-width="1.8"><polyline points="6 3 11 8 6 13"/></svg>
       </div>
       <div class="report-card-actions">
-        <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="downloadPDF(${r.id})">
+        <button class="btn btn-primary" style="flex:2;font-size:13px;" onclick="quickSendReport(${r.id})">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v2h8v-2"/><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5,7 8,10 11,7"/></svg>
-          PDF
+          PDF + Mail
         </button>
-        <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="openMailForReport(${r.id})">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="12" height="9" rx="1.5"/><polyline points="2,4 8,9.5 14,4"/></svg>
-          Mail
+        <button class="btn btn-secondary" style="padding:11px 12px;" onclick="downloadPDF(${r.id})" title="PDF seul">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v2h8v-2"/><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5,7 8,10 11,7"/></svg>
         </button>
         <button class="btn btn-danger" style="padding:11px 14px;" onclick="delReport(${r.id})">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="2,4 14,4"/><path d="M5 4V2h6v2"/><path d="M6 7v5M10 7v5"/><rect x="3" y="4" width="10" height="10" rx="1"/></svg>
@@ -1662,18 +1682,39 @@ function downloadPDF(id) {
 function downloadPDFForMail(rid, recipients, subj, bodyTxt) {
   const r = S.reports.find(x => x.id === rid);
   if (!r) return;
-  // Générer le PDF ET ouvrir mail
-  downloadPDF(rid);
-  setTimeout(() => {
-    const body = encodeURIComponent(bodyTxt + '\n\n[Joindre le PDF téléchargé]');
-    const href = buildMailHref(recipients.join(','), decodeURIComponent(subj), bodyTxt + '\n\n[Joindre le PDF téléchargé]');
-    const a = document.createElement('a');
-    a.href = href;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast('✉ Mail ouvert');
-  }, 1500);
+  // Étape 1 : télécharger le PDF
+  buildPDFDoc(r, (doc, filename) => {
+    try {
+      const blob = doc.output('blob');
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = filename; a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    } catch(e) {
+      doc.output('dataurlnewwindow');
+    }
+    // Étape 2 : afficher la barre de guidance + ouvrir mail après délai
+    showSendBar(filename, recipients, decodeURIComponent(subj), bodyTxt);
+  });
+}
+
+function showSendBar(filename, recipients, subj, bodyTxt) {
+  const bar = document.getElementById('send-guidance-bar');
+  const mailLink = document.getElementById('send-mail-link');
+  const filenameEl = document.getElementById('send-filename');
+  filenameEl.textContent = filename;
+  const fullBody = bodyTxt + '\n\n[Merci de joindre le PDF "' + filename + '" téléchargé dans vos Fichiers]';
+  mailLink.href = buildMailHref(recipients ? recipients.join(',') : '', subj, fullBody);
+  bar.style.display = 'flex';
+  // Fermer la modale mail si ouverte
+  document.getElementById('mailOverlay').classList.remove('open');
+  toast('📄 PDF téléchargé — suivez les étapes ci-dessous');
+}
+
+function hideSendBar() {
+  document.getElementById('send-guidance-bar').style.display = 'none';
 }
 
 
@@ -2125,6 +2166,40 @@ function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast show';
   setTimeout(() => t.className='toast', 2600);
+}
+
+
+function quickSendReport(id) {
+  const r = S.reports.find(x => x.id === id);
+  if (!r) return;
+  // Préparer objet et corps par défaut
+  const subj = 'Rapport CTB — ' + r.magasin + ' — ' + fmtDate(r.date);
+  const body = 'Bonjour,\n\nVeuillez trouver ci-joint le rapport CTB pour ' + r.magasin + ' du ' + fmtDate(r.date) + '.\n\nCordialement.';
+  downloadPDFForMail(id, [], subj, body);
+}
+
+
+function quickSendCurrentVisit() {
+  // Sauvegarder d'abord si pas encore sauvegardé
+  const mag   = document.getElementById('f-magasin').value;
+  const date  = document.getElementById('f-date').value;
+  const agent = document.getElementById('f-agent').value.trim();
+  if (!mag || !date || !agent) {
+    // Ouvrir la modale mail normale si pas de rapport complet
+    openMail(); return;
+  }
+  // Chercher le rapport le plus récent pour ce magasin/date
+  const existing = S.reports.find(r => r.magasin === mag && r.date === date);
+  if (existing) {
+    quickSendReport(existing.id);
+  } else {
+    // Sauvegarder puis envoyer
+    saveVisit();
+    setTimeout(() => {
+      const saved = S.reports.find(r => r.magasin === mag && r.date === date);
+      if (saved) quickSendReport(saved.id);
+    }, 300);
+  }
 }
 
 
